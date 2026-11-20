@@ -121,4 +121,54 @@ public static partial class AntigravityParser
 
     [GeneratedRegex(@"--csrf_token(?:=|\s+)(?:""(?<q>[^""]*)""|(?<v>[^\s""]+))")]
     private static partial Regex CsrfRegex();
+
+    /// <summary>
+    /// Reads one of the discovery files Antigravity (2.34+) writes to ~/.gemini/antigravity/daemon/:
+    /// <c>{"pid":…,"httpsPort":…,"httpPort":…,"lsVersion":…,"csrfToken":…}</c>. Null if it is not
+    /// usable. Ports come HTTPS first, the order the client should try them in.
+    /// </summary>
+    public static AgDaemonInfo? ParseDaemonFile(string json)
+    {
+        var root = JsonRead.TryParseObject(json);
+        if (root is null
+            || WholeNumber(root["pid"]) is not { } pid || pid <= 0 || pid > int.MaxValue
+            || JsonRead.String(root["csrfToken"]) is not { Length: > 0 } token)
+        {
+            return null;
+        }
+        List<int> ports = [];
+        foreach (var key in (string[])["httpsPort", "httpPort"])
+        {
+            if (WholeNumber(root[key]) is { } port and >= 1 and <= 65535 && !ports.Contains((int)port))
+            {
+                ports.Add((int)port);
+            }
+        }
+        return ports.Count == 0 ? null : new AgDaemonInfo((int)pid, token, ports);
+    }
+
+    /// <summary>
+    /// The discovery files whose process is still running (old ones are never cleaned up),
+    /// newest first, one per process.
+    /// </summary>
+    public static IReadOnlyList<AgDaemonInfo> PickLiveDaemons(
+        IEnumerable<(string Json, DateTime WrittenUtc)> files, Func<int, bool> isLanguageServer)
+    {
+        List<AgDaemonInfo> result = [];
+        foreach (var (json, _) in files.OrderByDescending(f => f.WrittenUtc))
+        {
+            if (ParseDaemonFile(json) is { } info
+                && result.TrueForAll(r => r.Pid != info.Pid)
+                && isLanguageServer(info.Pid))
+            {
+                result.Add(info);
+            }
+        }
+        return result;
+    }
+
+    private static long? WholeNumber(JsonNode? node) =>
+        JsonRead.Number(node) is { } d && d == Math.Floor(d) && Math.Abs(d) < 1e15 ? (long)d : null;
 }
+
+public sealed record AgDaemonInfo(int Pid, string CsrfToken, IReadOnlyList<int> Ports);

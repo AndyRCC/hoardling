@@ -93,9 +93,12 @@ I'd want to know this before running something like it, so here's everything it 
 - **A local HTTP listener on `127.0.0.1:47823`**: loopback only, so nothing on your network can
   reach it. It only accepts `POST /hoardling` with a loopback `Host` and no `Origin` header, which
   means a web page open in your browser can't feed it fake events.
-- **WMI**: it asks `Win32_Process` where Antigravity's local language server is (its port and
-  local token). When you start it from a terminal, an editor or Claude Code, it also calls
-  `Win32_Process.Create` once to relaunch itself outside the launcher's job. Some security tools
+- **`~/.gemini/antigravity/daemon/`**: it reads (never writes) the little files Antigravity leaves
+  there so local tools can find its language server: the port and a local token.
+- **WMI**: on Antigravity versions older than 2.34, which don't leave those files, it asks
+  `Win32_Process` where the language server is instead. When you start it from a terminal, an
+  editor or Claude Code, it also calls `Win32_Process.Create` once to relaunch itself outside the
+  launcher's job. Some security tools
   may flag that second call; it's only the dragon restarting itself. Antigravity's self-signed
   certificate is accepted for `127.0.0.1` only.
 - **`%APPDATA%\Hoardling\settings.json`**: where it remembers its spot and your preferences.
@@ -124,7 +127,7 @@ is only checked while Claude is open.
 | Claude limits | `GET https://api.anthropic.com/api/oauth/usage` with Claude Code's OAuth token |
 | Claude token refresh | `POST https://platform.claude.com/v1/oauth/token` |
 | Claude activity | Claude Code hooks posted to `http://127.0.0.1:47823/hoardling` |
-| Antigravity limits and activity | Antigravity's local language server (`127.0.0.1`, found through its process) |
+| Antigravity limits and activity | Antigravity's local language server (`127.0.0.1`), found through `~/.gemini/antigravity/daemon/` (or its process, before 2.34) |
 
 Nothing else leaves your machine. No telemetry, no other servers.
 

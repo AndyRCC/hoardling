@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using System.Management;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -8,12 +10,77 @@ namespace Hoardling.Services;
 public sealed record LanguageServerEndpoint(int Pid, string CsrfToken, IReadOnlyList<int> Ports);
 
 /// <summary>
-/// Finds Antigravity's local language server: CSRF token from its command line (WMI) and its
-/// listening ports (iphlpapi). Expensive (~100 ms), so callers cache the result.
+/// Finds Antigravity's local language server. Antigravity 2.34+ writes its ports and CSRF token
+/// to ~/.gemini/antigravity/daemon/*.json; older versions put the token on the command line, so
+/// that path (WMI plus iphlpapi, ~100 ms) is only taken lazily, when no discovery file answers.
+/// Callers cache the result.
 /// </summary>
 public static class LanguageServerLocator
 {
-    public static IReadOnlyList<LanguageServerEndpoint> FindAll()
+    private const long MaxDaemonFileBytes = 4096;
+
+    public static IEnumerable<LanguageServerEndpoint> FindAll()
+    {
+        List<int> seen = [];
+        foreach (var daemon in FromDaemonFiles())
+        {
+            seen.Add(daemon.Pid);
+            yield return new LanguageServerEndpoint(daemon.Pid, daemon.CsrfToken, daemon.Ports);
+        }
+        foreach (var endpoint in FromCommandLines())
+        {
+            if (!seen.Contains(endpoint.Pid))
+            {
+                yield return endpoint;
+            }
+        }
+    }
+
+    private static IReadOnlyList<AgDaemonInfo> FromDaemonFiles()
+    {
+        var dir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini", "antigravity", "daemon");
+        List<(string, DateTime)> files = [];
+        FileInfo[] candidates;
+        try
+        {
+            candidates = new DirectoryInfo(dir).GetFiles("*.json");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return []; // no folder: an Antigravity older than 2.34, or not installed
+        }
+        foreach (var file in candidates)
+        {
+            try
+            {
+                if (file.Length is > 0 and <= MaxDaemonFileBytes)
+                {
+                    files.Add((File.ReadAllText(file.FullName), file.LastWriteTimeUtc));
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Being rewritten or deleted right now: skip it, the others still count.
+            }
+        }
+        return AntigravityParser.PickLiveDaemons(files, IsLanguageServer);
+    }
+
+    private static bool IsLanguageServer(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return process.ProcessName.StartsWith("language_server", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return false; // gone, or the pid now belongs to something we can't inspect
+        }
+    }
+
+    private static List<LanguageServerEndpoint> FromCommandLines()
     {
         var result = new List<LanguageServerEndpoint>();
         List<(int Pid, string Csrf, bool IsAntigravity)> candidates = [];

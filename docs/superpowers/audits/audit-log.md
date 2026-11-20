@@ -332,3 +332,19 @@ Informe en `help-by-AG/review-release.md`: 8 hallazgos, comprobados contra el c�
 - Identidad de git: solo en este repositorio, con el usuario de GitHub y su correo `noreply`, para no publicar el correo personal.
 - Gemini como coautor, a pedido del usuario: el commit lleva también `Co-Authored-By: Gemini` con el correo `noreply` de `gemini-code-assist[bot]`, la cuenta de Google para Gemini en GitHub (Antigravity no tiene una propia). Se descartó un correo de un dominio de terceros que circula para esto. El commit se reescribió y se volvió a subir con `--force-with-lease` minutos después de publicarlo, con 0 forks.
 - Release v1.0.0: `Hoardling.exe` de un solo archivo (unos 680 KB; necesita el .NET 10 Desktop Runtime), compilado en `out/release` para no tocar el exe que está corriendo. Prueba de humo: `--render-states` dibuja todos los estados igual que la versión en uso.
+
+## Arreglo: Antigravity 2.34 dejó de mostrar sus datos
+
+- Síntoma: tras actualizar Antigravity, el anillo azul y la actividad dejaron de llegar.
+- Causa raíz, comprobada en el PC del usuario: Antigravity 2.34.0 arranca el servidor de lenguaje en modo `--standalone` (`resources\bin\language_server.exe`, `--https_server_port 0`, `--read_host_bridge_token_from_stdin`) y ya no pone `--csrf_token` en la línea de comandos. El descubrimiento por WMI no encontraba token y sin token el servidor responde `401 missing CSRF token`.
+- Lo que sí hay: Antigravity escribe `~/.gemini/antigravity/daemon/hub_<puerto>.json` con `pid`, `httpsPort`, `httpPort`, `lsVersion` y `csrfToken`, para que otros programas locales lo encuentren. Con ese token, `RetrieveUserQuotaSummary`, `GetUserStatus` y `GetAllCascadeTrajectories` responden igual que antes (por HTTPS y por HTTP). Se descartaron alternativas más invasivas (leer la memoria o el entorno de otro proceso, o usar las credenciales de Google de Antigravity).
+- Arreglo con TDD (16 tests RED → GREEN; suite 308/308, build sin warnings):
+  - `AntigravityParser.ParseDaemonFile`: valida `pid` entero positivo, token no vacío y puertos 1–65535; HTTPS primero; un JSON roto o incompleto devuelve null en vez de fallar;
+  - `AntigravityParser.PickLiveDaemons`: Antigravity nunca borra los archivos viejos (había 29), así que solo cuentan los de procesos `language_server*` vivos, del más nuevo al más viejo y uno por proceso;
+  - `LanguageServerLocator.FindAll` prueba primero esos archivos (máx. 4 KB cada uno; un archivo que se está reescribiendo se salta sin perder los demás) y solo si ninguno responde cae al método viejo por WMI, de forma perezosa. Con Antigravity 2.34 el descubrimiento ya no necesita WMI ni la tabla TCP, así que es más barato.
+- Verificación en vivo con Antigravity 2.34.0:
+  - `--probe-ag` encuentra el pid 2800 (puertos 30287 y 30288) y lee el plan, los grupos de límites y la actividad;
+  - Hoardling, relanzado con `--log`, muestra `ag=0%` (el anillo vuelve a aparecer) y el modo azul "trabajando";
+  - luego se relanzó sin `--log`: 41,6 MB y los 7 hooks en su sitio.
+- README: se añade la carpeta `~/.gemini/antigravity/daemon/` a "What it changes on your PC" (solo lectura) y a las fuentes de datos; WMI queda solo para versiones anteriores a 2.34.
+- Se publica como v1.0.1: `<Version>1.0.1</Version>` en `Hoardling.csproj`, para que el exe diga su versión (la 1.0 salió con la 1.0.0 por defecto).

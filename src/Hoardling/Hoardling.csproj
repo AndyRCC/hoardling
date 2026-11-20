@@ -6,6 +6,7 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>Hoardling</AssemblyName>
     <RootNamespace>Hoardling</RootNamespace>
+    <Version>1.0.1</Version>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <TieredPGO>false</TieredPGO>

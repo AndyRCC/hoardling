@@ -11,7 +11,7 @@ internal static class Diagnostics
     public static async Task<int> ProbeAntigravityAsync()
     {
         AttachConsole(AttachParentProcess);
-        var endpoints = LanguageServerLocator.FindAll();
+        var endpoints = LanguageServerLocator.FindAll().ToList();
         Console.WriteLine($"language servers: {endpoints.Count}");
         foreach (var e in endpoints)
         {
