@@ -348,3 +348,13 @@ Informe en `help-by-AG/review-release.md`: 8 hallazgos, comprobados contra el c�
   - luego se relanzó sin `--log`: 41,6 MB y los 7 hooks en su sitio.
 - README: se añade la carpeta `~/.gemini/antigravity/daemon/` a "What it changes on your PC" (solo lectura) y a las fuentes de datos; WMI queda solo para versiones anteriores a 2.34.
 - Se publica como v1.0.1: `<Version>1.0.1</Version>` en `Hoardling.csproj`, para que el exe diga su versión (la 1.0 salió con la 1.0.0 por defecto).
+
+## Arreglo: usar Gemini 4 Argon no movía el anillo azul
+
+- Síntoma: el usuario usa Argon en Antigravity y el anillo azul no cambia.
+- Causa raíz, comprobada con la respuesta cruda de `RetrieveUserQuotaSummary`: en el plan Pro, Argon tiene una cuota aparte y solo semanal (`gemini-argon-wtu-weekly`, sin límite de 5 h). El anillo tomaba el máximo de los límites de 5 h de todos los grupos, así que Argon nunca contaba. El parser estaba bien: la tarjeta ya mostraba "Gemini 4 Argon · Semana". Era un caso que la regla original ("solo el límite de 5 horas, el más gastado") no contemplaba.
+- Arreglo con TDD (8 tests RED → GREEN; suite 316/316, build sin warnings): `ProviderLimits.RingPercent()` toma, por cada grupo, su límite más corto (5 h si lo tiene; si no, el semanal; si no, otro) y el anillo muestra el más gastado de esos. Se mantiene la decisión del usuario para los grupos con 5 h (su semanal sigue fuera del anillo), Claude no cambia y el sudor al 80 % sigue la misma regla, ahora también con Argon. Se añadió una muestra real de la cuota con Argon usado (sin datos personales).
+- Verificación en vivo: con Argon al 31,7 % semanal y Gemini 5 h al 0,5 %, el log pasó a `ag=32%` (antes habría mostrado 0,5 %). Luego se relanzó sin `--log`: 41,3 MB y los 7 hooks en su sitio.
+- README: el anillo azul explica el caso de los modelos con solo límite semanal y "suda" pasa a "a ring is at 80 % or more".
+- Efecto a tener en cuenta: mientras se usa otro modelo, el anillo puede seguir mostrando el uso semanal de Argon si es el más alto. Es lo que pide la regla del "más gastado"; la tarjeta muestra cada grupo por separado.
+- Se publica como v1.0.2 (`<Version>1.0.2</Version>` en `Hoardling.csproj`).

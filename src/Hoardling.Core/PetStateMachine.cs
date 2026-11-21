@@ -39,8 +39,8 @@ public static class PetStateMachine
         // A closed app's limits may be spent on another device meanwhile: show and count only open apps.
         var claudeLimits = i.ClaudeOpen ? Fresh(i.ClaudeLimits, i.Now) : null;
         var agLimits = i.AgOpen ? Fresh(i.AgLimits, i.Now) : null;
-        var claudeRing = claudeLimits?.MaxUsed(LimitWindow.FiveHour);
-        var agRing = agLimits?.MaxUsed(LimitWindow.FiveHour);
+        var claudeRing = claudeLimits?.RingPercent();
+        var agRing = agLimits?.RingPercent();
 
         if (!i.ClaudeOpen && !i.AgOpen)
         {

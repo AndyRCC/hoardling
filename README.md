@@ -18,10 +18,11 @@ me how close I was to hitting my limits. So here it is.
 ## What it shows
 
 - **Rings.** The outer, orange ring is your Claude 5-hour session. The inner, blue one is
-  whichever Antigravity 5-hour limit you've used the most (Gemini or Claude/GPT). A ring only
-  shows up while its app is open on this PC: if it's closed, you might be using that limit from
-  your phone or another computer, and the dragon would just be showing you an old number. An
-  empty grey ring means the app is open but the data hasn't come in yet.
+  whichever Antigravity limit you've used the most: the 5-hour one for Gemini and Claude/GPT, and
+  the weekly one for models that only have a weekly limit, like Gemini 4 Argon on the Pro plan.
+  A ring only shows up while its app is open on this PC: if it's closed, you might be using that
+  limit from your phone or another computer, and the dragon would just be showing you an old
+  number. An empty grey ring means the app is open but the data hasn't come in yet.
 - **Hover card.** Hover over the dragon for the details: weekly limits, every Antigravity group
   and how long until each one resets. Same rule as the rings, it only lists the apps that are
   open.
@@ -36,7 +37,7 @@ me how close I was to hitting my limits. So here it is.
   | is half orange, half blue | both are working at the same time |
   | raises a hand with a "!" | Claude Code wants permission or is asking you something |
   | hops happily | one of them just finished |
-  | sweats | a 5-hour limit is at 80 % or more |
+  | sweats | a ring is at 80 % or more |
   | looks exhausted | a limit is at 100 % |
 
 - **Little gestures** every now and then, depending on its mood:

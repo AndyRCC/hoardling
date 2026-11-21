@@ -1,5 +1,6 @@
 namespace Hoardling.Core;
 
+/// <summary>Ordered from shortest to longest: <see cref="ProviderLimits.RingPercent"/> relies on it.</summary>
 public enum LimitWindow { FiveHour, Weekly, Other }
 
 public sealed record LimitBucket(string Label, LimitWindow Window, double UsedPercent, DateTimeOffset? ResetsAt);
@@ -21,6 +22,31 @@ public sealed record ProviderLimits(string? PlanName, IReadOnlyList<LimitGroup> 
             if (bucket.Window == window && (max is null || bucket.UsedPercent > max))
             {
                 max = bucket.UsedPercent;
+            }
+        }
+        return max;
+    }
+
+    /// <summary>
+    /// What the ring shows: the most used of each group's shortest limit. A group with a 5-hour
+    /// limit counts with it and its weekly one is left to the card; a group whose only limit is
+    /// weekly (Gemini 4 Argon on Antigravity's Pro plan) counts with that, so using it still
+    /// moves the ring. Null when there are no limits at all.
+    /// </summary>
+    public double? RingPercent()
+    {
+        double? max = null;
+        foreach (var group in Groups)
+        {
+            if (group.Buckets.Count == 0)
+            {
+                continue;
+            }
+            var shortest = group.Buckets.Min(b => b.Window);
+            var used = group.Buckets.Where(b => b.Window == shortest).Max(b => b.UsedPercent);
+            if (max is null || used > max)
+            {
+                max = used;
             }
         }
         return max;
